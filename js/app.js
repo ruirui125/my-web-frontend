@@ -18,7 +18,7 @@ let downloadLimitTimer = null;
 
 // 后端 API 的地址。注意：这是一个备用地址，首选是从 Vercel 环境变量中读取。
 // ⚠️ 如果部署后不工作，请确保您在 Vercel 上设置了 VITE_API_URL 环境变量！
-const BACKEND_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://YOUR-BACKEND-URL.vercel.app';
+const BACKEND_API_BASE_URL = 'https://my-music-backend.vercel.app';
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
