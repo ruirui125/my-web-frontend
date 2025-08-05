@@ -1,15 +1,3 @@
-// 配置
-const CONFIG = {
-    PAGINATION: {
-        PAGE_SIZE: 24
-    },
-    R2_BASE_URL: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/",
-    DOWNLOAD_LIMIT: {
-        MAX_PER_MINUTE: 10,  // 每分钟最大下载数
-        COOLDOWN_TIME: 180000  // 冷却时间（毫秒）- 3分钟
-    }
-};
-
 // 全局变量
 let audioData = [];
 let filteredData = [];
@@ -18,48 +6,91 @@ let currentCategory = 'all';
 let currentSearchTerm = '';
 let currentAudio = null;
 
-// 下载限流相关变量
+// 下载限流相关变量 (这部分功能保持不变)
 let downloadCount = 0;
 let downloadTimestamps = [];
 let downloadLimitReached = false;
 let downloadLimitTimer = null;
 
-// 初始化时检查本地存储中的限制状态
-function checkDownloadLimitStatus() {
-    const limitData = localStorage.getItem('downloadLimitData');
-    if (limitData) {
-        const data = JSON.parse(limitData);
-        
-        // 检查限制是否仍然有效
-        if (data.expiryTime > Date.now()) {
-            // 恢复限制状态
-            downloadLimitReached = true;
-            downloadTimestamps = data.timestamps;
-            
-            // 设置新的定时器
-            const remainingTime = data.expiryTime - Date.now();
-            downloadLimitTimer = setTimeout(() => {
-                downloadLimitReached = false;
-                downloadTimestamps = [];
-                localStorage.removeItem('downloadLimitData');
-                showNotification('info', '您现在可以继续下载音频文件');
-            }, remainingTime);
-        } else {
-            // 限制已过期，清除存储
-            localStorage.removeItem('downloadLimitData');
-        }
-    }
-}
+// ==========================================================
+// ==================== 主要修改区域开始 ====================
+// ==========================================================
+
+// 后端 API 的地址。注意：这是一个备用地址，首选是从 Vercel 环境变量中读取。
+// ⚠️ 如果部署后不工作，请确保您在 Vercel 上设置了 VITE_API_URL 环境变量！
+const BACKEND_API_BASE_URL = import.meta.env.VITE_API_URL || 'https://YOUR-BACKEND-URL.vercel.app';
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
     checkDownloadLimitStatus();
     initializeEventListeners();
-    loadAudioData();
+    loadAudioData(); // 函数名不变，但内部实现已修改
 });
 
+async function loadAudioData() {
+    try {
+        showLoading(true);
+        showStatus('', '');
+
+        // 新的代码：从云端后端 API 获取数据
+        const response = await fetch(`${BACKEND_API_BASE_URL}/api/tracks`);
+        
+        if (!response.ok) {
+            throw new Error(`无法加载音频数据: ${response.status}`);
+        }
+        
+        // 后端直接返回 JSON，我们不再需要手动解析 .txt 文件
+        const tracks = await response.json();
+        
+        if (tracks && tracks.length > 0) {
+            // 将从数据库获取的数据格式化为前端需要的格式
+            audioData = tracks.map(track => ({
+                id: track.id,
+                filename: track.title, // 使用 title 作为 filename
+                title: track.title.replace(/\.\w+$/, ''), // 移除扩展名
+                category: '背景音乐', // 您可以未来在数据库中增加 category 字段
+                url: track.audio_url
+            }));
+            console.log(`成功从 API 加载 ${audioData.length} 个音频文件`);
+        } else {
+            throw new Error("API 返回了空数据");
+        }
+        
+        // 过滤和渲染数据
+        filterAndRenderAudio();
+        showLoading(false);
+        
+    } catch (error) {
+        console.error('加载音频数据时出错:', error);
+        showStatus('error', `加载音频数据时出错: ${error.message}。请检查后端服务是否正常，以及 Vercel 环境变量是否已正确设置。`);
+        showLoading(false);
+    }
+}
+
+// 移除了 parseAudioMappingFile 函数，因为不再需要它了
+
+// ========================================================
+// ==================== 主要修改区域结束 ====================
+// ========================================================
+
+
+// 其他所有函数 (initializeEventListeners, searchAudio, playAudio, etc.) 保持不变
+// 为了简洁，这里省略，请保留您文件中这部分的原有代码
+// For brevity, the rest of the functions are omitted here. 
+// Please keep the original code for the other functions in your file.
+// For completeness, here is the full code again:
+
+const CONFIG = {
+    PAGINATION: {
+        PAGE_SIZE: 24
+    },
+    DOWNLOAD_LIMIT: {
+        MAX_PER_MINUTE: 10,  // 每分钟最大下载数
+        COOLDOWN_TIME: 180000  // 冷却时间（毫秒）- 3分钟
+    }
+};
+
 function initializeEventListeners() {
-    // 搜索功能
     const searchInput = document.getElementById('searchInput');
     const searchButton = document.getElementById('searchButton');
     
@@ -70,27 +101,19 @@ function initializeEventListeners() {
         }
     });
 
-    // 分类筛选
     const categoryButtons = document.querySelectorAll('.category-button');
     categoryButtons.forEach(button => {
         button.addEventListener('click', function() {
-            // 更新按钮状态
             categoryButtons.forEach(btn => btn.classList.remove('active'));
             this.classList.add('active');
-            
-            // 更新当前分类
             currentCategory = this.dataset.category;
             currentPage = 1;
-            
-            // 重新过滤和渲染数据
             filterAndRenderAudio();
         });
     });
 
-    // 分页控件
     document.getElementById('first-page').addEventListener('click', () => goToPage(1));
     document.getElementById('prev-page').addEventListener('click', () => {
-        // 如果当前是第一页，则循环到最后一页
         if (currentPage === 1) {
             const totalPages = Math.ceil(filteredData.length / CONFIG.PAGINATION.PAGE_SIZE);
             goToPage(totalPages);
@@ -99,7 +122,6 @@ function initializeEventListeners() {
         }
     });
     document.getElementById('next-page').addEventListener('click', () => {
-        // 如果当前是最后一页，则循环到第一页
         const totalPages = Math.ceil(filteredData.length / CONFIG.PAGINATION.PAGE_SIZE);
         if (currentPage === totalPages) {
             goToPage(1);
@@ -112,7 +134,6 @@ function initializeEventListeners() {
         goToPage(totalPages);
     });
     
-    // 页码输入跳转
     document.getElementById('go-to-page').addEventListener('click', () => {
         const pageInput = document.getElementById('page-input');
         const pageNumber = parseInt(pageInput.value);
@@ -131,6 +152,26 @@ function initializeEventListeners() {
     });
 }
 
+function checkDownloadLimitStatus() {
+    const limitData = localStorage.getItem('downloadLimitData');
+    if (limitData) {
+        const data = JSON.parse(limitData);
+        if (data.expiryTime > Date.now()) {
+            downloadLimitReached = true;
+            downloadTimestamps = data.timestamps;
+            const remainingTime = data.expiryTime - Date.now();
+            downloadLimitTimer = setTimeout(() => {
+                downloadLimitReached = false;
+                downloadTimestamps = [];
+                localStorage.removeItem('downloadLimitData');
+                showNotification('info', '您现在可以继续下载音频文件');
+            }, remainingTime);
+        } else {
+            localStorage.removeItem('downloadLimitData');
+        }
+    }
+}
+
 function searchAudio() {
     const searchTerm = document.getElementById('searchInput').value.toLowerCase();
     currentSearchTerm = searchTerm;
@@ -144,141 +185,19 @@ function goToPage(page) {
         currentPage = page;
         renderAudioGrid();
         window.scrollTo(0, 0);
-        
-        // 更新页码输入框
         document.getElementById('page-input').value = currentPage;
     }
 }
 
-async function loadAudioData() {
-    try {
-        showLoading(true);
-        showStatus('', '');
-
-        // 从本地音乐与R2映射文件中加载数据
-        const response = await fetch('/backend/本地音乐与R2映射.txt');
-        if (!response.ok) {
-            throw new Error(`无法加载音频数据: ${response.status} ${response.statusText}`);
-        }
-        
-        const text = await response.text();
-        
-        // 解析映射文件内容
-        const musicFiles = parseAudioMappingFile(text);
-        
-        if (musicFiles.length > 0) {
-            audioData = musicFiles;
-            console.log(`成功加载 ${audioData.length} 个音频文件`);
-        } else {
-            console.warn('未从映射文件中解析到数据，使用硬编码的数据');
-            // 使用硬编码的示例数据
-            audioData = [
-                { id: 1, filename: "1 129.mp3", title: "1 129", category: "背景音乐", url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1%20129.mp3" },
-                { id: 2, filename: "1 50.mp3", title: "1 50", category: "背景音乐", url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1%2050.mp3" },
-                { id: 3, filename: "1.mp3", title: "1", category: "背景音乐", url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1.mp3" }
-            ];
-        }
-        
-        // 过滤和渲染数据
-        filterAndRenderAudio();
-        showLoading(false);
-        
-    } catch (error) {
-        console.error('加载音频数据时出错:', error);
-        showStatus('error', `加载音频数据时出错: ${error.message}`);
-        showLoading(false);
-    }
-}
-
-function parseAudioMappingFile(text) {
-    const musicFiles = [];
-    const lines = text.split('\n');
-    
-    let currentIndex = 0;
-    let currentTitle = '';
-    let currentUrl = '';
-    
-    for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        
-        // 跳过空行和注释
-        if (!line || line.startsWith('#') || line.startsWith('## ') || line.startsWith('- ')) {
-            continue;
-        }
-        
-        // 检查是否是音频文件行（以数字开头）
-        const match = line.match(/^(\d+)\.\s+(.+)$/);
-        if (match) {
-            // 如果已经有一个完整的条目，先保存它
-            if (currentTitle && currentUrl) {
-                musicFiles.push({
-                    id: currentIndex,
-                    filename: currentTitle,
-                    title: currentTitle.replace(/\.\w+$/, ''), // 移除扩展名
-                    category: '背景音乐',
-                    url: currentUrl
-                });
-            }
-            
-            currentIndex = parseInt(match[1]);
-            currentTitle = match[2];
-            currentUrl = '';
-            continue;
-        }
-        
-        // 检查是否是URL行
-        if (line.startsWith('http') || line.trim().startsWith('http')) {
-            currentUrl = line.trim();
-            
-            // 添加到音频文件列表
-            if (currentTitle && currentUrl) {
-                musicFiles.push({
-                    id: currentIndex,
-                    filename: currentTitle,
-                    title: currentTitle.replace(/\.\w+$/, ''), // 移除扩展名
-                    category: '背景音乐',
-                    url: currentUrl
-                });
-                
-                // 重置
-                currentTitle = '';
-                currentUrl = '';
-            }
-        }
-    }
-    
-    // 处理最后一个条目
-    if (currentTitle && currentUrl) {
-        musicFiles.push({
-            id: currentIndex,
-            filename: currentTitle,
-            title: currentTitle.replace(/\.\w+$/, ''), // 移除扩展名
-            category: '背景音乐',
-            url: currentUrl
-        });
-    }
-    
-    return musicFiles;
-}
-
 function filterAndRenderAudio() {
-    // 根据分类和搜索词过滤数据
     filteredData = audioData.filter(audio => {
-        // 分类过滤
         const categoryMatch = currentCategory === 'all' || audio.category === currentCategory;
-        
-        // 搜索词过滤
         const searchMatch = !currentSearchTerm || 
             audio.title.toLowerCase().includes(currentSearchTerm) || 
             audio.filename.toLowerCase().includes(currentSearchTerm);
-        
         return categoryMatch && searchMatch;
     });
-    
-    // 更新分页信息
     updatePagination();
-    
-    // 渲染音频网格
     renderAudioGrid();
 }
 
@@ -291,18 +210,15 @@ function renderAudioGrid() {
         return;
     }
     
-    // 计算当前页的数据
     const startIndex = (currentPage - 1) * CONFIG.PAGINATION.PAGE_SIZE;
     const endIndex = Math.min(startIndex + CONFIG.PAGINATION.PAGE_SIZE, filteredData.length);
     const currentPageData = filteredData.slice(startIndex, endIndex);
     
-    // 渲染每个音频卡片
     currentPageData.forEach(audio => {
         const card = document.createElement('div');
         card.className = 'audio-card';
         card.dataset.id = audio.id;
         
-        // 如果是当前播放的音频，添加active类
         if (currentAudio && currentAudio.id === audio.id) {
             card.classList.add('active');
         }
@@ -322,14 +238,10 @@ function renderAudioGrid() {
             </div>
         `;
         
-        // 添加点击事件
         card.addEventListener('click', () => playAudio(audio));
-        
-        // 添加到网格
         audioGrid.appendChild(card);
     });
     
-    // 添加播放按钮点击事件
     document.querySelectorAll('.play-button').forEach(button => {
         button.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -342,7 +254,6 @@ function renderAudioGrid() {
         });
     });
     
-    // 添加下载按钮点击事件
     document.querySelectorAll('.download-button').forEach(button => {
         button.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -357,21 +268,15 @@ function renderAudioGrid() {
 }
 
 function playAudio(audio) {
-    // 更新当前播放的音频
     currentAudio = audio;
-    
-    // 更新播放器
     const audioPlayer = document.getElementById('audio-player');
     audioPlayer.src = audio.url;
     audioPlayer.play();
-    
-    // 更新播放器信息
     document.getElementById('current-audio-title').textContent = audio.title;
     const categoryElement = document.getElementById('current-audio-category');
     categoryElement.textContent = audio.category;
     categoryElement.style.display = 'inline-block';
     
-    // 更新音频卡片的active状态
     document.querySelectorAll('.audio-card').forEach(card => {
         if (parseInt(card.dataset.id) === audio.id) {
             card.classList.add('active');
@@ -382,82 +287,49 @@ function playAudio(audio) {
 }
 
 function downloadAudio(audio) {
-    // 检查是否达到下载限制
     if (downloadLimitReached) {
         showDownloadLimitAlert();
         return;
     }
     
-    // 检查下载次数
     const now = Date.now();
-    
-    // 移除过期的下载记录
     downloadTimestamps = downloadTimestamps.filter(timestamp => now - timestamp < CONFIG.DOWNLOAD_LIMIT.COOLDOWN_TIME);
     
-    // 检查是否超过限制
     if (downloadTimestamps.length >= CONFIG.DOWNLOAD_LIMIT.MAX_PER_MINUTE) {
-        // 设置限制标志
         downloadLimitReached = true;
-        
-        // 计算限制过期时间
         const expiryTime = now + CONFIG.DOWNLOAD_LIMIT.COOLDOWN_TIME;
-        
-        // 保存限制状态到本地存储
         localStorage.setItem('downloadLimitData', JSON.stringify({
             timestamps: downloadTimestamps,
             expiryTime: expiryTime
         }));
-        
-        // 显示限制提示
         showDownloadLimitAlert();
-        
-        // 设置定时器，冷却时间后解除限制
         downloadLimitTimer = setTimeout(() => {
             downloadLimitReached = false;
             downloadTimestamps = [];
             localStorage.removeItem('downloadLimitData');
             showNotification('info', '您现在可以继续下载音频文件');
         }, CONFIG.DOWNLOAD_LIMIT.COOLDOWN_TIME);
-        
         return;
     }
     
     try {
-        // 记录本次下载
         downloadTimestamps.push(now);
-        
-        // 从URL中提取文件名
         const filename = audio.filename;
         
-        // 直接使用R2存储URL
-        const r2Url = `https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/${encodeURIComponent(filename)}`;
-        
-        // 使用Fetch API下载文件
-        fetch(r2Url)
+        fetch(audio.url) // 使用从API获取的完整URL
             .then(response => response.blob())
             .then(blob => {
-                // 创建Blob URL
                 const blobUrl = window.URL.createObjectURL(blob);
-                
-                // 创建一个临时的a元素
                 const a = document.createElement('a');
                 a.href = blobUrl;
-                a.download = filename; // 设置下载的文件名
+                a.download = filename;
                 a.style.display = 'none';
-                
-                // 添加到文档中
                 document.body.appendChild(a);
-                
-                // 模拟点击
                 a.click();
-                
-                // 短暂延迟后移除
                 setTimeout(() => {
                     document.body.removeChild(a);
-                    window.URL.revokeObjectURL(blobUrl); // 释放Blob URL
+                    window.URL.revokeObjectURL(blobUrl);
                 }, 100);
-                
-                // 显示下载提示
                 showNotification('success', `正在下载: ${filename} (本分钟已下载 ${downloadTimestamps.length}/${CONFIG.DOWNLOAD_LIMIT.MAX_PER_MINUTE})`);
             })
             .catch(error => {
@@ -470,9 +342,7 @@ function downloadAudio(audio) {
     }
 }
 
-// 显示下载限制提示
 function showDownloadLimitAlert() {
-    // 创建弹窗
     const alertBox = document.createElement('div');
     alertBox.className = 'download-limit-alert';
     alertBox.innerHTML = `
@@ -484,16 +354,10 @@ function showDownloadLimitAlert() {
             <button id="close-alert">我知道了</button>
         </div>
     `;
-    
-    // 添加到文档
     document.body.appendChild(alertBox);
-    
-    // 添加关闭按钮事件
     document.getElementById('close-alert').addEventListener('click', () => {
         document.body.removeChild(alertBox);
     });
-    
-    // 自动关闭
     setTimeout(() => {
         if (document.body.contains(alertBox)) {
             document.body.removeChild(alertBox);
@@ -508,7 +372,6 @@ function showNotification(type, message, duration = 3000) {
     notification.classList.add('show');
     notification.textContent = message;
     
-    // 自动隐藏
     setTimeout(() => {
         notification.classList.remove('show');
     }, duration);
@@ -518,20 +381,17 @@ function updatePagination() {
     const totalItems = filteredData.length;
     const totalPages = Math.ceil(totalItems / CONFIG.PAGINATION.PAGE_SIZE);
     
-    // 更新分页信息
     document.getElementById('current-page').textContent = currentPage;
     document.getElementById('total-pages').textContent = totalPages;
     document.getElementById('total-items').textContent = totalItems;
     document.getElementById('page-input').value = currentPage;
     document.getElementById('page-input').max = totalPages;
     
-    // 更新按钮状态 - 移除禁用状态，让所有按钮始终可点击
     document.getElementById('first-page').disabled = false;
     document.getElementById('prev-page').disabled = false;
     document.getElementById('next-page').disabled = false;
     document.getElementById('last-page').disabled = false;
     
-    // 显示或隐藏分页控件
     document.getElementById('pagination').style.display = totalItems > 0 ? 'flex' : 'none';
 }
 
