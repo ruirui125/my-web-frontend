@@ -175,33 +175,42 @@ function goToPage(page) {
     }
 }
 
+// ==================== 新的 loadAudioData 函数 ====================
 async function loadAudioData() {
     try {
         showLoading(true);
         showStatus('', '');
 
-        // 从JSON文件中加载带标签的音乐数据
-        const response = await fetch('/frontend/music_with_tags.json');
+        // 定义您的后端 API 地址
+        // 记得把下面的网址替换成您后端服务真实的、可以工作的 Vercel 网址
+        const BACKEND_API_BASE_URL = 'https://my-music-backend-kappa.vercel.app';
+
+        // 新的代码：从云端后端 API 获取数据
+        const response = await fetch(`${BACKEND_API_BASE_URL}/api/tracks`);
+        
         if (!response.ok) {
-            throw new Error(`无法加载音频数据: ${response.status} ${response.statusText}`);
+            throw new Error(`无法加载音频数据: ${response.status}`);
         }
         
-        const musicFiles = await response.json();
+        // 后端直接返回 JSON 格式的歌曲列表
+        const tracks = await response.json();
         
-        if (musicFiles.length > 0) {
-            audioData = musicFiles;
-            console.log(`成功加载 ${audioData.length} 个音频文件`);
+        if (tracks && tracks.length > 0) {
+            // 将从数据库获取的数据格式化为前端需要的格式
+            audioData = tracks.map(track => ({
+                id: track.id,
+                filename: track.title, // 使用 title 作为 filename
+                title: track.title.replace(/\.\w+$/, ''), // 移除扩展名
+                category: '背景音乐', // 您可以未来在数据库中增加 category 字段
+                tags: ['常用BGM'],    // 您也可以在数据库中增加 tags 字段
+                url: track.audio_url
+            }));
+            console.log(`成功从 API 加载 ${audioData.length} 个音频文件`);
         } else {
-            console.warn('未从JSON文件中解析到数据，使用硬编码的数据');
-            // 使用硬编码的示例数据
-            audioData = [
-                { id: 1, filename: "1 129.mp3", title: "1 129", category: "背景音乐", tags: ["欢快", "常用BGM"], url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1%20129.mp3" },
-                { id: 2, filename: "1 50.mp3", title: "1 50", category: "背景音乐", tags: ["温馨轻松", "常用BGM"], url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1%2050.mp3" },
-                { id: 3, filename: "1.mp3", title: "1", category: "背景音乐", tags: ["其他"], url: "https://pub-9080df1990a64ae1b863768bfcb203b9.r2.dev/background-music/1.mp3" }
-            ];
+            throw new Error("API 返回了空数据");
         }
         
-        // 收集所有可用的标签
+        // 收集所有可用的标签 (这部分逻辑保持不变，可以复用)
         collectAvailableTags();
         
         // 过滤和渲染数据
@@ -213,10 +222,11 @@ async function loadAudioData() {
         
     } catch (error) {
         console.error('加载音频数据时出错:', error);
-        showStatus('error', `加载音频数据时出错: ${error.message}`);
+        showStatus('error', `加载音频数据时出错: ${error.message}。`);
         showLoading(false);
     }
 }
+// ================================================================
 
 function parseAudioMappingFile(text) {
     const musicFiles = [];
@@ -757,4 +767,5 @@ function showStatus(type, message) {
     
     statusElement.textContent = message;
     statusElement.style.display = 'block';
+
 }
