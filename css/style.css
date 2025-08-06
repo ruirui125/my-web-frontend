@@ -104,6 +104,7 @@ button:hover:not(:disabled) {
     display: flex;
     gap: 10px;
     flex-wrap: wrap;
+    margin-bottom: 15px;
 }
 
 .category-button {
@@ -125,6 +126,68 @@ button:hover:not(:disabled) {
 
 .category-button:hover {
     border-color: var(--primary-color);
+    transform: translateY(-1px);
+}
+
+/* 二级分类样式 */
+.sub-category-container {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.sub-category-title {
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #4a5568;
+}
+
+.sub-category-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.sub-category-button {
+    padding: 6px 12px;
+    border: 1px solid var(--border-color);
+    background: white;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-size: 13px;
+    color: #4a5568;
+}
+
+.sub-category-button.active {
+    background: var(--secondary-color);
+    color: white;
+    border-color: var(--secondary-color);
+}
+
+.sub-category-button:hover {
+    border-color: var(--secondary-color);
+    transform: translateY(-1px);
+}
+
+.tag-container {
+    margin-top: 5px;
+}
+
+.sub-category-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    background-color: rgba(118, 75, 162, 0.1);
+    color: var(--secondary-color);
+    border-radius: 10px;
+    font-size: 12px;
+    margin: 2px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sub-category-tag:hover {
+    background-color: rgba(118, 75, 162, 0.2);
     transform: translateY(-1px);
 }
 
