@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>音频素材库</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-music"></i> 音频素材库</h1>
+            <p>高效便捷的音频素材管理与播放工具</p>
+        </div>
+
+        <div class="controls">
+            <div class="search-section">
+                <input type="text" id="searchInput" class="search-input" placeholder="搜索音频文件...">
+                <button id="searchButton" class="search-button">
+                    <i class="fas fa-search"></i> 搜索
+                </button>
+            </div>
+
+            <div class="category-filters">
+                <button class="category-button active" data-category="all">全部</button>
+                <button class="category-button" data-category="背景音乐">背景音乐</button>
+                <button class="category-button" data-category="音效">音效</button>
+                <button class="category-button" data-category="人声">人声</button>
+                <button class="category-button" data-category="自然">自然</button>
+            </div>
+            
+            <div id="subCategoryContainer" class="sub-category-container">
+                <div class="sub-category-title">音乐风格:</div>
+                <div class="sub-category-filters">
+                    <button class="sub-category-button active" data-subcategory="all">全部风格</button>
+                    <button class="sub-category-button" data-subcategory="抖音大V">抖音大V</button>
+                    <button class="sub-category-button" data-subcategory="推文热曲">推文热曲</button>
+                    <button class="sub-category-button" data-subcategory="温馨轻松">温馨轻松</button>
+                    <button class="sub-category-button" data-subcategory="热血战斗">热血战斗</button>
+                    <button class="sub-category-button" data-subcategory="国风">国风</button>
+                    <button class="sub-category-button" data-subcategory="欢快">欢快</button>
+                    <button class="sub-category-button" data-subcategory="爱情">爱情</button>
+                    <button class="sub-category-button" data-subcategory="悲伤">悲伤</button>
+                    <button class="sub-category-button" data-subcategory="悬疑恐怖">悬疑恐怖</button>
+                    <button class="sub-category-button" data-subcategory="常用BGM">常用BGM</button>
+                    <button class="sub-category-button" data-subcategory="其他">其他</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="player-section">
+            <div class="player-info">
+                <h3 id="current-audio-title">请选择音频文件</h3>
+                <span id="current-audio-category" class="category" style="display: none;"></span>
+            </div>
+            <audio id="audio-player" class="audio-player" controls>
+                您的浏览器不支持音频播放。
+            </audio>
+        </div>
+
+        <div class="audio-grid">
+            <div id="statusMessage" class="status" style="display: none;"></div>
+            <div id="loadingIndicator" class="loading-placeholder">
+                <div class="loading-spinner"></div>
+                <p>加载中，请稍候...</p>
+            </div>
+            <div id="audioGrid" class="audio-list"></div>
+        </div>
+
+        <div class="pagination" id="pagination" style="display: none;">
+            <button id="first-page">首页</button>
+            <button id="prev-page">上一页</button>
+            <div class="page-input-container">
+                <input type="number" id="page-input" min="1" value="1">
+                <button id="go-to-page">跳转</button>
+            </div>
+            <span class="pagination-info">
+                第 <span id="current-page">1</span> 页，共 <span id="total-pages">1</span> 页
+                (总计 <span id="total-items">0</span> 项)
+            </span>
+            <button id="next-page">下一页</button>
+            <button id="last-page">末页</button>
+        </div>
+    </div>
+
+    <div id="notification" class="notification"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
