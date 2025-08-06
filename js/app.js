@@ -176,33 +176,30 @@ function goToPage(page) {
 }
 
 // ==================== 新的 loadAudioData 函数 ====================
+// 在您的 app.js 文件中，找到 loadAudioData 函数，用下面的代码替换
+
 async function loadAudioData() {
     try {
         showLoading(true);
         showStatus('', '');
 
-        // 定义您的后端 API 地址
-        // 记得把下面的网址替换成您后端服务真实的、可以工作的 Vercel 网址
         const BACKEND_API_BASE_URL = 'https://my-music-backend-kappa.vercel.app';
-
-        // 新的代码：从云端后端 API 获取数据
         const response = await fetch(`${BACKEND_API_BASE_URL}/api/tracks`);
         
         if (!response.ok) {
             throw new Error(`无法加载音频数据: ${response.status}`);
         }
         
-        // 后端直接返回 JSON 格式的歌曲列表
         const tracks = await response.json();
         
         if (tracks && tracks.length > 0) {
-            // 将从数据库获取的数据格式化为前端需要的格式
+            // 直接使用从后端传来的完整数据
             audioData = tracks.map(track => ({
                 id: track.id,
-                filename: track.title, // 使用 title 作为 filename
-                title: track.title.replace(/\.\w+$/, ''), // 移除扩展名
-                category: '背景音乐', // 您可以未来在数据库中增加 category 字段
-                tags: ['常用BGM'],    // 您也可以在数据库中增加 tags 字段
+                filename: track.title,
+                title: track.title.replace(/\.\w+$/, ''),
+                category: track.category || '未知分类', // 使用后端数据
+                tags: track.tags || [], // 使用后端数据
                 url: track.audio_url
             }));
             console.log(`成功从 API 加载 ${audioData.length} 个音频文件`);
@@ -210,14 +207,9 @@ async function loadAudioData() {
             throw new Error("API 返回了空数据");
         }
         
-        // 收集所有可用的标签 (这部分逻辑保持不变，可以复用)
         collectAvailableTags();
-        
-        // 过滤和渲染数据
         filterAndRenderAudio();
         showLoading(false);
-        
-        // 初始化二级分类显示
         updateSubCategoryDisplay();
         
     } catch (error) {
@@ -769,3 +761,4 @@ function showStatus(type, message) {
     statusElement.style.display = 'block';
 
 }
+
